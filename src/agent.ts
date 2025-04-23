@@ -3,7 +3,11 @@ import {
   OpenAI,
   FunctionTool,
   OpenAIAgent,
-  Settings
+  Settings,
+  SimpleDirectoryReader,
+  HuggingFaceEmbedding,
+  VectorStoreIndex,
+  QueryEngineTool
 } from 'llamaindex';
 import 'dotenv/config';
 

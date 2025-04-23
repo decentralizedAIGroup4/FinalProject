@@ -1,15 +1,17 @@
 {
    "name": "your-project",
-      "version": "1.0.0",
-      "type": "module",
-      "scripts": {
-        "build": "tsc"
-      },
-      "devDependencies": {
-        "typescript": "^5.0.0"
-     },
+   "version": "1.0.0",
+   "type": "module",
+   "scripts": {
+      "build": "tsc"
+   },
+   "devDependencies": {
+      "typescript": "^5.0.0"
+   },
    "dependencies": {
-    "dotenv": "^16.5.0",
-    "llamaindex": "^0.10.2"
-  }
+      "@llamaindex/huggingface": "^0.1.6",
+      "@llamaindex/readers": "^3.1.0",
+      "dotenv": "^16.5.0",
+      "llamaindex": "^0.10.2"
+   }
 }
