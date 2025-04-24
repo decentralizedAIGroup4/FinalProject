@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // Cache for the agent to avoid recreating it on every request
 let agentCache: any = null;
-let currentDocumentPath: string | null = null;
+let currentDocumentPaths: string[] = [];
 
 /**
  * Handles POST requests to the agent API endpoint
@@ -31,60 +31,133 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if we need to create a new agent with a different document
-    let documentPath = path.join(process.cwd(), "data", "Brent-CV-2025a.pdf"); // Default CV
-    let documentDescription = "This tool can answer detailed questions about Brent's resume/CV.";
+    // Default document paths and descriptions
+    const documentPaths: string[] = [];
+    const documentDescriptions: string[] = [];
     
-    // If files are provided, use the first file
+    // Default CV if no files are provided
+    const defaultCvPath = path.join(process.cwd(), "data", "Brent-CV-2025a.pdf");
+    
+    // Default job description if needed for cover letter generation
+    const defaultJobDescPath = path.join(process.cwd(), "data", "junior-full-stack-web-dev.pdf");
+    
+    // Check if this is a cover letter request
+    const isCoverLetterRequest = message.toLowerCase().includes("generate cover letter") || 
+                                message.toLowerCase().includes("create cover letter") ||
+                                message.toLowerCase().includes("write cover letter") ||
+                                message.toLowerCase().includes("cover letter");
+    
+    // Process uploaded files
     if (files && files.fileUrls && files.fileUrls.length > 0) {
-      const fileUrl = files.fileUrls[0];
-      const fileName = files.fileNames[0];
-      
-      // Check if the file path is already absolute
-      let filePath = fileUrl;
-      
-      // If it's not an absolute path, construct it
-      if (!path.isAbsolute(fileUrl)) {
-        filePath = path.join(process.cwd(), "output", "uploaded", path.basename(fileUrl));
+      for (let i = 0; i < files.fileUrls.length; i++) {
+        const fileUrl = files.fileUrls[i];
+        const fileName = files.fileNames[i];
+        
+        // Check if the file path is already absolute
+        let filePath = fileUrl;
+        
+        // If it's not an absolute path, construct it
+        if (!path.isAbsolute(fileUrl)) {
+          filePath = path.join(process.cwd(), "output", "uploaded", path.basename(fileUrl));
+        }
+        
+        // Verify the file exists
+        if (!existsSync(filePath)) {
+          console.error(`File not found: ${filePath}`);
+          return NextResponse.json(
+            { error: `File not found: ${fileName}` },
+            { status: 404 }
+          );
+        }
+        
+        documentPaths.push(filePath);
+        
+        // Determine if this is a CV or job description based on the file name or position in the array
+        // This is a simple heuristic - in a real app, you might want to analyze the content
+        const isJobDescription = fileName.toLowerCase().includes("job") || 
+                                fileName.toLowerCase().includes("description") ||
+                                i > 0; // Assume second file is job description
+        
+        if (isJobDescription) {
+          documentDescriptions.push(`This tool can analyze the job description: ${fileName}`);
+        } else {
+          documentDescriptions.push(`This tool can analyze the resume/CV: ${fileName}`);
+        }
+        
+        console.log(`Using uploaded document ${i+1}:`, filePath);
       }
+    } else {
+      // If no files are provided, use the default CV
+      documentPaths.push(defaultCvPath);
+      documentDescriptions.push("This tool can answer detailed questions about Brent's resume/CV.");
       
-      // Verify the file exists
-      if (!existsSync(filePath)) {
-        console.error(`File not found: ${filePath}`);
-        return NextResponse.json(
-          { error: `File not found: ${fileName}` },
-          { status: 404 }
-        );
-      }
-      
-      documentPath = filePath;
-      documentDescription = `This tool can answer detailed questions about the uploaded resume/CV: ${fileName}`;
-      
-      console.log("Using uploaded document:", documentPath);
-      
-      // If the document path has changed, we need to create a new agent
-      if (currentDocumentPath !== documentPath) {
-        agentCache = null;
-        currentDocumentPath = documentPath;
+      // If this is a cover letter request, also add the default job description
+      if (isCoverLetterRequest) {
+        documentPaths.push(defaultJobDescPath);
+        documentDescriptions.push("This tool can analyze the default job description for a Junior Full Stack Web Developer position.");
+        console.log("Added default job description for cover letter generation");
       }
     }
-
-    // Initialize the agent if it doesn't exist
-    if (!agentCache) {
-      console.log("Creating new agent with document:", documentPath);
+    
+    // Check if we need to create a new agent with different documents
+    const documentsChanged = documentPaths.length !== currentDocumentPaths.length ||
+      documentPaths.some((path, index) => path !== currentDocumentPaths[index]);
+    
+    if (documentsChanged || !agentCache) {
+      console.log("Creating new agent with documents:", documentPaths);
+      
+      // Create a combined description for the agent
+      let agentDescription = "This agent can analyze";
+      if (documentPaths.length > 1) {
+        agentDescription += " and compare a CV/resume against a job description to assess fit.";
+      } else {
+        agentDescription += " a CV/resume and answer questions about it.";
+      }
+      
+      // Create the agent with the documents
       agentCache = await createAgentWithPdfTool(
-        documentPath,
-        "resume_tool",
-        documentDescription
+        documentPaths,
+        "document_analysis_tool",
+        agentDescription
       );
+      
+      // Update the current document paths
+      currentDocumentPaths = [...documentPaths];
     }
 
-    // Chat with the agent - the function now returns a string directly
-    const responseText = await chatWithAgent(agentCache, message);
+    // Enhance the message if we have both CV and job description
+    let enhancedMessage = message;
+    let hasBothDocuments = false;
+    
+    if (documentPaths.length > 1) {
+      hasBothDocuments = true;
+      
+      // If this is a cover letter generation request
+      if (message.toLowerCase().includes("generate cover letter") || 
+          message.toLowerCase().includes("create cover letter") ||
+          message.toLowerCase().includes("write cover letter") ||
+          message.toLowerCase().includes("cover letter")) {
+        enhancedMessage = "Please generate a professional cover letter based on the CV and job description provided. The cover letter should highlight the candidate's relevant skills and experiences that match the job requirements, and explain why they would be a good fit for the position. IMPORTANT: Use your document analysis tools to access and analyze both the CV and job description. DO NOT ask for these documents as they are already provided to you through your tools.";
+      }
+      // If the user hasn't explicitly asked for a comparison but we have both documents,
+      // explicitly instruct the agent to analyze both documents without asking for details
+      else if (!message.toLowerCase().includes("compare") && 
+          !message.toLowerCase().includes("match") &&
+          !message.toLowerCase().includes("fit")) {
+        enhancedMessage = `Based on the CV and job description provided, ${message} Please analyze both documents and provide insights without asking for additional details.`;
+      }
+    }
+
+    // Chat with the agent
+    const responseText = await chatWithAgent(agentCache, enhancedMessage);
     
     console.log("Response text:", responseText);
 
-    return NextResponse.json({ response: responseText });
+    // Add a flag to indicate if both documents are present
+    return NextResponse.json({ 
+      response: responseText,
+      hasBothDocuments: hasBothDocuments
+    });
   } catch (error) {
     console.error("[Agent API]", error);
     return NextResponse.json(
