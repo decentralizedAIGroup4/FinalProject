@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"node_modules/@llamaindex/chat-ui/dist/widgets/index.js -> @llamaindex/pdf-viewer\":{\"id\":\"node_modules/@llamaindex/chat-ui/dist/widgets/index.js -> @llamaindex/pdf-viewer\",\"files\":[\"static/chunks/_app-pages-browser_node_modules_llamaindex_pdf-viewer_dist_esm_index_js.js\"]}}"

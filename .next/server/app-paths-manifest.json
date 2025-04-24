@@ -1,0 +1,7 @@
+{
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/api/chat/config/route": "app/api/chat/config/route.js",
+  "/api/chat/agent/route": "app/api/chat/agent/route.js",
+  "/page": "app/page.js",
+  "/agent/page": "app/agent/page.js"
+}
