@@ -1,0 +1,18 @@
+Dropping some links:
+Get started with Token API MCP: https://thegraph.com/docs/en/token-api/mcp/claude/
+FastMCP library: https://github.com/punkpeye/fastmcp
+Token API: https://token-api.thegraph.com
+
+
+https://github.com/punkpeye/awesome-mcp-servers
+
+
+Our Github repos:
+https://github.com/pinax-network/token-api
+https://github.com/pinax-network/pinax-mcp/
+
+
+MCP server address:
+https://token-api.thegraph.com/sse
+
+
